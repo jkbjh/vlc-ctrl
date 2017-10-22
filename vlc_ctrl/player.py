@@ -13,6 +13,8 @@ from redlib.api.system import CronDBus, CronDBusError, in_cron, sys_command, DEV
 from redlib.api.misc import Retry, log
 
 
+
+
 class PlayerError(Exception):
 	pass
 
@@ -71,15 +73,15 @@ class Player(object):
 			print(e)
 			raise PlayerError("cannot launch vlc, may be it's not installed")
 
-	
-	def play(self, path, filter):
+
+	def play(self, path=None, filter=None):
 		if path is None:
 			self._player.Play()
 			return
 
 		self.add(path, filter)
 
-			
+
 	def add(self, path, filter):
 		uqpath = shlex.split(path)[0]
 
@@ -109,11 +111,17 @@ class Player(object):
 				if filter.filter(f):
 					self.add(joinpath(root, f), None)
 
+	def get_tracks(self):
+		tracks = self.get_prop("Tracks", self.tracklist_interface)
+		metadata = self._tracklist.GetTracksMetadata(tracks)
+		return map(self._metadata_simplify, metadata)
+		# return 
+
 
 	def mime_type_supported(self, filename):
 		if self._mime_types is None:
 			self._mime_types = self.get_prop('SupportedMimeTypes', self.main_interface)
-	
+
 		if mimetypes.guess_type(filename)[0] in self._mime_types:
 			return True
 		return False
@@ -121,6 +129,16 @@ class Player(object):
 
 	def jump(self, pattern):
 		pass
+
+
+	def get_position(self):
+		# this method returns the current position in seconds
+		return self.get_prop("Position").real / 1e6
+
+	def set_position(self, seconds):
+		track_id = self.track_info()["trackid"]
+		usecs = seconds * 1e6
+		self._player.SetPosition(track_id, usecs)
 
 
 	def pause(self):
@@ -160,7 +178,7 @@ class Player(object):
 	def set_volume(self, value):
 		self.set_prop('Volume', value)
 
-	
+
 	def fade_volume(self, target, time):
 		steps = int(time / 0.1)
 
@@ -173,9 +191,8 @@ class Player(object):
 			self.volume -= delta
 			sleep(0.1)
 
-
-	def track_info(self):
-		metadata = self.get_prop('Metadata')
+	@staticmethod
+	def _metadata_simplify(metadata):
 		info = {}
 
 		def unc(input):
@@ -185,6 +202,7 @@ class Player(object):
 
 		mget = lambda k : metadata.get(k, None)
 
+		info['trackid'] = unc(mget('mpris:trackid'))
 		info['album'] 	= unc(mget('xesam:album'))
 		info['title'] 	= unc(mget('xesam:title'))
 		info['artist'] 	= unc(mget('xesam:artist')[0]) if mget('xesam:artist') is not None and len(mget('xesam:artist')) > 0 else None
@@ -193,7 +211,12 @@ class Player(object):
 		info['genre'] 	= unc(mget('xesam:genre')[0]) if mget('xesam:genre') is not None and len(mget('xesam:genre')) > 0 else None
 
 		return info
-		
+
+
+	def track_info(self):
+		metadata = self.get_prop('Metadata')
+		return self._metadata_simplify(metadata)
+
 
 	def stop(self):
 		self._player.Stop()
