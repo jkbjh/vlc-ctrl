@@ -6,7 +6,7 @@ from redcmd.api import Subcommand, subcmd, CommandError, PathArg
 
 from .player_list import PlayerList, PlayerListError
 from .filter import Filter
-
+from . import remember_player
 
 class ClientSubcommands(Subcommand):
 
@@ -41,6 +41,25 @@ class ClientSubcommands(Subcommand):
 			filter = Filter(include=include, exclude=exclude, include_file=include_file, exclude_file=exclude_file, random=random)
 
 		self.player_list_error_wrapped(self._players.play, path, filter)
+
+	@subcmd
+	def restore(self, path=PathArg(opt=True), ):
+		'''Restore playback from json file created by watch.
+
+		path: 		path to dir/file/url to be added
+		'''
+		manager = remember_player.Manager(path)
+		self.player_list_error_wrapped(manager.restore)
+
+
+	@subcmd
+	def watch(self, path=PathArg(opt=True), ):
+		'''Watch vlc playback and store to json file
+
+		path: 		path to dir/file/url
+		'''
+		manager = remember_player.Manager(path)
+		self.player_list_error_wrapped(manager.watch, sleeptime=15)
 
 
 	@subcmd

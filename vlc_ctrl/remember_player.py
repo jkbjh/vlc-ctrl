@@ -46,10 +46,10 @@ class Player(object):
         for number, track in playlist:
             self.player._tracklist.AddTrack("file://" + track, dbus.ObjectPath("/"), current_number == number)
         self.player.set_position(position)
-        time.sleep(0.01)
+        time.sleep(0.1)  # this is because the DBUS calls to vlc appear to be async. Better: use signals/callbacks or whatever they are called here
         curr_pos = self.player.get_position()
         if(abs(curr_pos - position) > 1):
-            time.sleep(0.01)
+            time.sleep(0.1)
             self.player.set_position(position)
 
 
